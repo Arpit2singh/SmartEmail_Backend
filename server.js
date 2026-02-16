@@ -1,6 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import bcrypt from 'bcrypt';
+import CryptoJS from 'crypto-js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -32,6 +34,16 @@ const emailSchema = new mongoose.Schema({
 });
 const Email = mongoose.model('Email', emailSchema);
 
+const smtpConfigSchema = new mongoose.Schema({
+    admin: { type: String, required: true, unique: true },
+    host: { type: String, required: true },
+    port: { type: Number, required: true },
+    secure: { type: Boolean, default: false },
+    user: { type: String, default: "" },
+    pass: { type: String, default: "" },
+});
+const SmtpConfig = mongoose.model('SmtpConfig', smtpConfigSchema);
+
 app.post('/api/instance', async (req, res) => {
     try {
         const { email } = req.body;
@@ -53,6 +65,55 @@ app.post('/api/instance', async (req, res) => {
         }
     } catch (error) {
         console.log("user not created");
+    }
+});
+
+app.post('/api/checkUser', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const config = await SmtpConfig.findOne({ admin: email });
+        if (config) {
+            res.status(200).json({ exists: true });
+        }
+        else {
+            res.status(200).json({ exists: false });
+        }
+    } catch (error) {
+        console.error("Check user error:", error);
+        res.status(500).json({ error: "Server error checking user" });
+    }
+});
+
+app.post('/api/passSet', async (req, res) => {
+    try {
+        const { email, host, port, secure, user, password } = req.body;
+        console.log("Configuring SMTP for:", email);
+        
+        let hashedPassword = "";
+        if (password) {
+            hashedPassword = CryptoJS.AES.encrypt(password, process.env?.SECRET_KEY).toString();
+        }
+
+        const updateResponse = await SmtpConfig.findOneAndUpdate(
+            { admin: email },
+            { 
+                $set: { 
+                    host: host || "smtp.gmail.com",
+                    port: port || 465,
+                    secure: secure !== undefined ? secure : true,
+                    user: user || "",
+                    pass: hashedPassword
+                } 
+            },
+            { new: true, upsert: true }
+        );
+
+        console.log("SMTP Config updated:", updateResponse);
+        return res.status(200).json({ flag: true, message: "SMTP configuration updated successfully" });
+
+    } catch (error) {
+        console.error("Error setting SMTP config:", error);
+        res.status(401).json({ flag: false, message: "user not found , or something went wrong while updating the SMTP config" });
     }
 });
 
