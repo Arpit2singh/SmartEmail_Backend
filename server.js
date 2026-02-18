@@ -1,6 +1,8 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import nodemailer from 'nodemailer';
 import cors from 'cors';
+import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import CryptoJS from 'crypto-js';
 import dotenv from 'dotenv';
@@ -65,6 +67,126 @@ app.post('/api/instance', async (req, res) => {
         }
     } catch (error) {
         console.log("user not created");
+    }
+});
+
+app.post('/api/send', async (req, res) => {
+    try {
+        const { from, to, subject, body } = req.body;
+        const trackingId = uuidv4();
+        
+        const smtpConfig = await SmtpConfig.findOne({ admin: from });
+        if (!smtpConfig) {
+            return res.status(400).json({ success: false, message: "SMTP configuration not found. Please configure SMTP first." });
+        }
+
+        let appPass = null;
+        if (smtpConfig.pass) {
+            appPass = CryptoJS.AES.decrypt(smtpConfig.pass, process.env.SECRET_KEY).toString(CryptoJS.enc.Utf8);
+        }
+
+        let transporterOptions = {};
+        
+        // Auto-optimize for Gmail configurations
+        if (smtpConfig.host && smtpConfig.host.includes('gmail.com')) {
+            transporterOptions = {
+                service: 'gmail',
+                auth: {
+                    user: smtpConfig.user,
+                    pass: appPass,
+                },
+                connectionTimeout: 10000,
+                greetingTimeout: 10000,
+                socketTimeout: 10000,
+            };
+        } else {
+            transporterOptions = {
+                host: smtpConfig.host,
+                port: smtpConfig.port,
+                secure: smtpConfig.secure,
+                connectionTimeout: 10000,
+                greetingTimeout: 10000,
+                socketTimeout: 10000,
+            };
+            if (smtpConfig.user) {
+                transporterOptions.auth = {
+                    user: smtpConfig.user,
+                    pass: appPass,
+                };
+            }
+        }
+
+        const transporter = nodemailer.createTransport(transporterOptions);
+        await transporter.verify();
+
+        const trackingUrl = `${process.env.BASE_URL || `http://${req.headers.host}`}/media/${trackingId}`;
+        const htmlWithPixel = `
+    <p>${body}</p>
+    <br>
+    <img src="${trackingUrl}" width="1" height="1" alt="" border="0" style="display:block;" />
+    `;
+
+        const info = await transporter.sendMail({
+            from: smtpConfig.user || from,
+            to: to,
+            subject: subject,
+            text: body,
+            html: htmlWithPixel,
+        });
+
+        if (info) {
+            console.log("message sent successfully");
+            await Email.create({
+                admin: from,
+                recipient: to,
+                trackingId: trackingId,
+                subject: subject,
+                password: smtpConfig.pass
+            });
+        }
+        else {
+            console.log("message sending failed");
+            return res.status(500).json({ success: false, message: "Failed to send email" });
+        }
+
+        res.json({
+            success: true,
+            message: "Email sent with tracking!",
+            trackingId: trackingId,
+            trackingUrl: trackingUrl
+        });
+
+    } catch (error) {
+        console.error("SMTP Send Error:", error);
+        res.status(500).json({ error: "Failed to send the mail. Check your SMTP settings." });
+    }
+});
+
+const transparentPixel = Buffer.from(
+    'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'
+);
+
+app.get([`/api/media/:id`, `/media/:id`], async (req, res) => {
+    try {
+        const trackingId = req.params.id;
+        const response = await Email.findOneAndUpdate(
+            { trackingId: trackingId },
+            {
+                $set: { status: 'opened', openedAt: new Date() },
+                $inc: { count: 1 },
+            }
+        );
+        console.log(`Email ${trackingId} Opened!  `, response);
+
+        res.writeHead(200, {
+            'Content-Type': 'image/gif',
+            'Content-Length': transparentPixel.length,
+            'Cache-Control': 'no-store, no-cache'
+        });
+        res.end(transparentPixel);
+
+    } catch (error) {
+        res.end(transparentPixel);
     }
 });
 
