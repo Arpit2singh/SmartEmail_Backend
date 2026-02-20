@@ -190,6 +190,17 @@ app.get([`/api/media/:id`, `/media/:id`], async (req, res) => {
     }
 });
 
+app.post('/api/emails', async (req, res) => {
+    try {
+        const { email } = req.body;
+        const allEmail = await Email.find({ admin: email }).sort({ _id: -1 });
+        res.status(200).json(allEmail);
+    } catch (error) {
+        console.error("Error fetching emails:", error);
+        res.status(500).json({ error: "Failed to fetch emails" });
+    }
+});
+
 app.post('/api/checkUser', async (req, res) => {
     try {
         const { email } = req.body;
