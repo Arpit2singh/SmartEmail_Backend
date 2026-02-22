@@ -250,4 +250,62 @@ app.post('/api/passSet', async (req, res) => {
     }
 });
 
+app.post('/api/ai/generate', async (req, res) => {
+    try {
+        const { prompt, action, text, tone } = req.body;
+        if (!process.env.OPENAI_API_KEY) {
+            return res.status(500).json({ success: false, message: "OpenAI API Key is not configured in backend environment." });
+        }
+
+        let systemPrompt = "You are a professional email assistant. Help write or refine emails.";
+        let userPrompt = "";
+
+        if (action === 'generate') {
+            systemPrompt = "You are a professional email writer. Generate a complete, polished email body based on the instruction. Do not include placeholders like '[Your Name]' or signature details. Output ONLY the email body itself.";
+            userPrompt = `Write an email draft based on this request:\n\n${prompt}`;
+        } else if (action === 'improve') {
+            systemPrompt = "You are an email enhancer. Rewrite the text to make it more professional, grammatically correct, and engaging. Do not include subject lines or signature placeholders.";
+            userPrompt = `Refine this email content:\n\n${text}`;
+        } else if (action === 'tone') {
+            systemPrompt = `You are a professional email writer. Rewrite the text to have a strictly "${tone}" tone. Maintain original intent, but change sentence structure and vocabulary to match. Do not include placeholders.`;
+            userPrompt = `Change tone to ${tone} for:\n\n${text}`;
+        } else if (action === 'subject') {
+            systemPrompt = "You are a copywriter. Generate exactly 3 direct, engaging email subject lines based on the email body text. Return ONLY the 3 subject lines, one per line. Do not number or quote them. No comments.";
+            userPrompt = `Generate 3 subject lines for:\n\n${text}`;
+        } else {
+            return res.status(400).json({ success: false, message: "Invalid AI action request" });
+        }
+
+        const openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ],
+                temperature: 0.7
+            })
+        });
+
+        if (!openAiResponse.ok) {
+            const errorDetails = await openAiResponse.json();
+            console.error("OpenAI API direct error details:", errorDetails);
+            return res.status(500).json({ success: false, message: errorDetails?.error?.message || "OpenAI API responded with an error." });
+        }
+
+        const data = await openAiResponse.json();
+        const result = data.choices[0].message.content.trim();
+
+        return res.json({ success: true, result });
+    } catch (error) {
+        console.error("AI Generation server error:", error);
+        return res.status(500).json({ success: false, message: "Internal server error during AI operations." });
+    }
+});
+
 app.listen(5000, () => console.log('Backend running on port 5000'));
