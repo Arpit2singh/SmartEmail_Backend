@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
@@ -16,13 +17,13 @@ const allowedOrigins = [
   "https://smart-email-frontend-eight.vercel.app"
 ];
 
-app.use(cors());
+app.use(cors())
 app.use(express.json());
 
-const MONGO_URL = process.env.MONGO_URL;
+const MONGO_URL = process.env.MONGO_URL ;
 mongoose.connect(MONGO_URL).then(() => {
-    console.log("MongoDB connected");
-}).catch((err) => console.log("Db error", err));
+    console.log("MongoDB connected")
+}).catch((err) => (console.log("Db error", err)));
 
 const emailSchema = new mongoose.Schema({
     admin: { type: String, default: null },
@@ -46,6 +47,7 @@ const smtpConfigSchema = new mongoose.Schema({
 });
 const SmtpConfig = mongoose.model('SmtpConfig', smtpConfigSchema);
 
+
 app.post('/api/instance', async (req, res) => {
     try {
         const { email } = req.body;
@@ -58,7 +60,7 @@ app.post('/api/instance', async (req, res) => {
             console.log("creating user instance");
             const createEmailInstance = await Email.create({
                 admin: email, recipient: null, trackingId: null, subject: null, password: null
-            });
+            })
             res.status(200).json({ message: "user instance created successfully", instance: createEmailInstance });
         }
         else {
@@ -66,9 +68,12 @@ app.post('/api/instance', async (req, res) => {
             res.status(200).json({ message: "user instance already exists", instance: checkUserInstance });
         }
     } catch (error) {
-        console.log("user not created");
+        console.log("user not created")
     }
-});
+})
+
+
+
 
 app.post('/api/send', async (req, res) => {
     try {
@@ -160,11 +165,16 @@ app.post('/api/send', async (req, res) => {
         console.error("SMTP Send Error:", error);
         res.status(500).json({ error: "Failed to send the mail. Check your SMTP settings." });
     }
-});
+})
+
+
+
+
 
 const transparentPixel = Buffer.from(
     'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64'
 );
+
 
 app.get([`/api/media/:id`, `/media/:id`], async (req, res) => {
     try {
@@ -175,8 +185,8 @@ app.get([`/api/media/:id`, `/media/:id`], async (req, res) => {
                 $set: { status: 'opened', openedAt: new Date() },
                 $inc: { count: 1 },
             }
-        );
-        console.log(`Email ${trackingId} Opened!  `, response);
+        )
+        console.log(`Email ${trackingId} Opened!  `, response)
 
         res.writeHead(200, {
             'Content-Type': 'image/gif',
@@ -188,7 +198,7 @@ app.get([`/api/media/:id`, `/media/:id`], async (req, res) => {
     } catch (error) {
         res.end(transparentPixel);
     }
-});
+})
 
 app.post('/api/emails', async (req, res) => {
     try {
@@ -199,7 +209,7 @@ app.post('/api/emails', async (req, res) => {
         console.error("Error fetching emails:", error);
         res.status(500).json({ error: "Failed to fetch emails" });
     }
-});
+})
 
 app.post('/api/checkUser', async (req, res) => {
     try {
@@ -215,7 +225,7 @@ app.post('/api/checkUser', async (req, res) => {
         console.error("Check user error:", error);
         res.status(500).json({ error: "Server error checking user" });
     }
-});
+})
 
 app.post('/api/passSet', async (req, res) => {
     try {
@@ -246,9 +256,10 @@ app.post('/api/passSet', async (req, res) => {
 
     } catch (error) {
         console.error("Error setting SMTP config:", error);
-        res.status(401).json({ flag: false, message: "user not found , or something went wrong while updating the SMTP config" });
+        res.status(401).json({ flag: false, message: "user not found , or something went wrong while updating the SMTP config" })
     }
-});
+})
+
 
 app.post('/api/ai/generate', async (req, res) => {
     try {
@@ -308,4 +319,14 @@ app.post('/api/ai/generate', async (req, res) => {
     }
 });
 
-app.listen(5000, () => console.log('Backend running on port 5000'));
+
+// Resend integration removed. Custom SMTP takes its place.
+
+
+
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(5000, () => console.log('Backend running on port 5000'));
+}
+
+// Export the app for Vercel's serverless environment
+export default app;
