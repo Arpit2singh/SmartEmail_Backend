@@ -75,17 +75,20 @@ app.post('/api/send', async (req, res) => {
         }
 
 
-        const transporter = nodemailer.createTransport({
-            service: "gmail",
-            port: 587,
-            secure: false, // Use true for port 465, false for port 587
-            auth: {
-                user: from,
-                pass: appPass,
-            },
-        });
+      const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // VERY IMPORTANT
+    auth: {
+        user: from,
+        pass: appPass,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+});
 
-       
+       await transporter.verify();
         const trackingUrl = `${process.env.BASE_URL}/track/${trackingId}`;
         const htmlWithPixel = `
     <p>${body}</p>
