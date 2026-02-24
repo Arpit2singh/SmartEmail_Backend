@@ -277,5 +277,9 @@ app.post('/api/publicEmail' , async(req,res)=>{
 
 
 
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(5000, () => console.log('Backend running on port 5000'));
+}
 
-app.listen(5000, () => console.log('Backend running on port 5000'));
+// Export the app for Vercel's serverless environment
+export default app;
