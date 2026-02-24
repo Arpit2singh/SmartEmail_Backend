@@ -95,16 +95,17 @@ app.post('/api/send', async (req, res) => {
 });
 
        await transporter.verify();
-        const trackingUrl = `${process.env.BASE_URL}/track/${trackingId}`;
+        const trackingUrl = `${process.env.BASE_URL}/media/${trackingId}`;
         const htmlWithPixel = `
     <p>${body}</p>
     <br>
-    <img src="${trackingUrl}" width="1" height="1" style="display:none;" />
+    <img src="${trackingUrl}" width="1" height="1" alt="" border="0" style="display:block;" />
     `
         const info = await transporter.sendMail({
             from: from,
             to: to,
             subject: subject, // Plain-text version of the message
+            text: body, 
             html: htmlWithPixel, // HTML version of the message
         });
 
@@ -143,7 +144,7 @@ const transparentPixel = Buffer.from(
 );
 
 
-app.get(`/api/track/:id`, async (req, res) => {
+app.get(`/api/media/:id`, async (req, res) => {
     try {
         const trackingId = req.params.id;
         const response = await Email.findOneAndUpdate(
@@ -229,11 +230,11 @@ app.post('/api/publicEmail' , async(req,res)=>{
       const {admin , to  , subject , text , name} = req.body ; 
   
       const trackingId = uuidv4() ; 
-      const trackingUrl = `${process.env.BASE_URL}/track/${trackingId}`; 
+      const trackingUrl = `${process.env.BASE_URL}/media/${trackingId}`; 
       const htmlWithPixel = `
               <p>${text}</p>
               <br>
-              <img src="${trackingUrl}" width="1" height="1" style="display:none;" />
+              <img src="${trackingUrl}" width="1" height="1" alt="" border="0" style="display:block;" />
           `;
   
     const { data , error } = await resend.emails.send({
