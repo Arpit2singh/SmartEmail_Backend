@@ -18,23 +18,7 @@ const allowedOrigins = [
   "https://smart-email-frontend-eight.vercel.app"
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like Postman)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, true); // temporary allow all (remove later)
-    }
-  },
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}));
-
-app.options("/*", cors()); // FIXED (no "*")
+app.use(cors())
 app.use(express.json());
 
 const MONGO_URL = process.env.MONGO_URL ;
