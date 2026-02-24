@@ -33,7 +33,7 @@ const emailSchema = new mongoose.Schema({
     password: { type: String, default: null },
     status: { type: String, default: 'sent' },
     openedAt: { type: Date, default: null },
-    count: { type: Number, default: 0 },
+    count: { type: Number, default: -1 },
     subject: String,
 });
 const Email = mongoose.model('Email', emailSchema);
