@@ -12,8 +12,19 @@ import {Resend} from 'resend'
 dotenv.config();
 
 const app = express();
+const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://smart-email-frontend-eight.vercel.app"
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
+
+app.options("*", cors()); 
 app.use(express.json());
 const MONGO_URL = process.env.MONGO_URL ;
 mongoose.connect(MONGO_URL).then(() => {
